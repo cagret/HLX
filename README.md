@@ -37,13 +37,20 @@ You can execute the `./benchmark` program using the following command with custo
 ```bash
 ./benchmark -p 15 -q 8
 ```
+
+In our HyperLogLog (HLL) implementation, we utilize the `XXH64` function from the XXHash library for efficient hashing of data elements. This function is integral to the accuracy and performance of the HLL algorithm. Here's a brief overview of how `XXH64` is used:
+
+- **Function Purpose**: `XXH64` is a high-speed hashing function that generates a 64-bit hash value. It's known for its exceptional speed and is widely used in scenarios where performance is critical.
+
+- **Parameters**:
+  - `p`: This is a pointer to the data you wish to hash. The data can be of any type, such as a string, a number, or a custom structure.
+  - `q` (length): The size of the data pointed to by `p` in bytes. This length tells `XXH64` how much data to read and hash from `p`.
+  - `seed`: In our implementation, this is set to `666`. The seed is used to initialize the hashing algorithm and can be any number. Changing the seed will result in a completely different hash for the same data, which can be useful for generating unique hash series or for security purposes.
+
+- **Usage in HLL**: The hash value returned by `XXH64` is used to determine the register index to update and the rank of the hash, which are key components in estimating the cardinality (the number of unique elements) in a dataset.
 - The `-p` option allows you to specify the value of `p` (e.g., `-p 15`).
 
 - The `-q` option allows you to specify the value of `q` (e.g., `-q 8`).
-
-If you don't specify these options, the default values will be `p=10` and `q=8`, which correspond to the parameters used by the `xxhash` library.
-
-
 
 
 ## HL2 and HL3: The Basics

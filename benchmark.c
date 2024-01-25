@@ -23,7 +23,7 @@ void benchmarkHLL(CreateHLLFunc createFunc, unsigned char p, unsigned char q, si
 
 	*memoryUsage = sizeOfHLL(hll);
 	double cardinalite_estimee = estimate_cardinality(hll);
-	printf("Cardinalité estimée: %f\n", cardinalite_estimee);
+	printf("Cardinalité estimée: %f\n", (cardinalite_estimee/nombre_elements)*100);
 
 	destroyHyperLogLog(hll);
 	clock_t end = clock();
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Exemple : ./benchmark -p 12 -q 8\n");
 		return 1;
 	}
-	size_t nombre_elements = 10000000;
+	size_t nombre_elements = 1000000000;
 	CreateHLLFunc functions[] = {(CreateHLLFunc)createHyperLogLog2, (CreateHLLFunc)createHyperLogLog3, (CreateHLLFunc)createHyperLogLog4};
 	const char* names[] = {"HL2", "HL3", "HL4"};
 	size_t memoryUsages[3];

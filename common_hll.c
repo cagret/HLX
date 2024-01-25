@@ -10,7 +10,7 @@
 
 #define ALPHA_INF (1.0 / (2.0 * log(2.0)))
 //#define DEBUG_ASM
-#define DEBUG
+//#define DEBUG
 
 size_t sizeOfHLL(CommonHLL *hll) {
     size_t size = sizeof(*hll); // Taille de la structure HyperLogLog elle-même
