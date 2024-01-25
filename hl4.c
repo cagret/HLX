@@ -9,7 +9,7 @@
 #include "hl4.h"
 #include "common_hll.h"
 
-HL4* createHyperLogLog4(unsigned char p, unsigned char q) {
+HL4* createHL4(unsigned char p, unsigned char q) {
 	size_t size = (size_t)(1 << p);
 	HL4* hll = malloc(sizeof(HL4));
 	hll->commonHLL.p = p;
@@ -22,9 +22,11 @@ HL4* createHyperLogLog4(unsigned char p, unsigned char q) {
 	return hll;
 }
 
-void destroyHyperLogLog4(HL4* hll) {
+void destroyHL4(HL4* hll) {
 	free(hll->commonHLL.registers);
 	free(hll->commonHLL.counts);
 	free(hll);
 }
-
+void insertHL4(CommonHLL* hll, Bitstream* bitstream) {
+	//TODO
+}

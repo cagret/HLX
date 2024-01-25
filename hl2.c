@@ -10,7 +10,7 @@
 #include "hl2.h"
 
 
-HL2* createHyperLogLog2(unsigned char p, unsigned char q) {
+HL2* createHL2(unsigned char p, unsigned char q) {
 	size_t size = (size_t)(1 << p);
 	HL2* hll = malloc(sizeof(HL2));
 	hll->commonHLL.p = p;
@@ -23,8 +23,12 @@ HL2* createHyperLogLog2(unsigned char p, unsigned char q) {
 	return hll;
 }
 
-void destroyHyperLogLog2(HL2* hll) {
+void destroyHL2(HL2* hll) {
 	free(hll->commonHLL.registers);
 	free(hll->commonHLL.counts);
 	free(hll);
+}
+
+void insertHL2(CommonHLL* hll, Bitstream* bitstream) {
+//TODO
 }

@@ -11,8 +11,9 @@ typedef struct {
     CommonHLL commonHLL;
 } HL2;
 
-HL2* createHyperLogLog2(unsigned char p, unsigned char q);
-void destroyHyperLogLog2(HL2* hll);
+HL2* createHL2(unsigned char p, unsigned char q);
+void destroyHL2(HL2* hll);
+void insertHL2(CommonHLL* hll, Bitstream* bitstream);
 
 #endif // HL2_H
 

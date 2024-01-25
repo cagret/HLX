@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "xxhash.h"
 #include "common_hll.h"
 #include "hl2.h"
 #include "hl3.h"
@@ -9,26 +10,30 @@
 
 
 typedef CommonHLL* (*CreateHLLFunc)(unsigned char, unsigned char);
+typedef void (*InsertHLLFunc)(CommonHLL*, Bitstream*);
 
-void benchmarkHLL(CreateHLLFunc createFunc, unsigned char p, unsigned char q, size_t nombre_elements, size_t* memoryUsage, double* timeSpent) {
+void benchmarkHLL(CreateHLLFunc createFunc, InsertHLLFunc insertFunc, unsigned char p, unsigned char q, size_t nombre_elements, size_t* memoryUsage, double* timeSpent) {
 	clock_t start = clock();
-	size_t nb_elements = nombre_elements;
-	CommonHLL* hll = createFunc(p, q);
-	for (uint64_t i = 1; i <= nb_elements; i++) {
-		ajouter(hll, &i, sizeof(i));
+	CommonHLL* hll = createFunc(p, q); // Créez une instance de HLL avec p et q
+	for (uint64_t i = 1; i <= nombre_elements; i++) {
+		Bitstream* bitstream = generateBitstreamForElement(&i, sizeof(i));
+		insertFunc(hll, bitstream);
+		destroyBitstream(bitstream);
+
 		if (i % 100000000 == 0) {
-			printf("Éléments insérés : %lu / %lu\n", i, nb_elements);
+			printf("Éléments insérés : %lu / %lu\n", i, nombre_elements);
 		}
 	}
 
 	*memoryUsage = sizeOfHLL(hll);
 	double cardinalite_estimee = estimate_cardinality(hll);
-	printf("Cardinalité estimée: %f\n", (cardinalite_estimee/nombre_elements)*100);
+	printf("Cardinalité estimée: %f\n", cardinalite_estimee);
 
-	destroyHyperLogLog(hll);
+	destroyHLL(hll);
 	clock_t end = clock();
 	*timeSpent = (double)(end - start) / CLOCKS_PER_SEC;
 }
+
 
 int main(int argc, char *argv[]) {
 	int p = 10; 
@@ -58,13 +63,14 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 	size_t nombre_elements = 1000000000;
-	CreateHLLFunc functions[] = {(CreateHLLFunc)createHyperLogLog2, (CreateHLLFunc)createHyperLogLog3, (CreateHLLFunc)createHyperLogLog4};
 	const char* names[] = {"HL2", "HL3", "HL4"};
+	CreateHLLFunc functions[] = {(CreateHLLFunc)createHL2, (CreateHLLFunc)createHL3, (CreateHLLFunc)createHL4};
+	InsertHLLFunc insertFunctions[] = {(InsertHLLFunc)insertHL2, (InsertHLLFunc)insertHL3, (InsertHLLFunc)insertHL4};
 	size_t memoryUsages[3];
 	double timeSpents[3];
 
 	for (int i = 0; i < 3; i++) {
-		benchmarkHLL(functions[i], p, q, nombre_elements, &memoryUsages[i], &timeSpents[i]);
+		benchmarkHLL(functions[i],insertFunctions[i], p, q, nombre_elements, &memoryUsages[i], &timeSpents[i]);
 		printf("%s utilise %zu octets de mémoire, Temps d'exécution: %f secondes\n", names[i], memoryUsages[i], timeSpents[i]);
 	}
 

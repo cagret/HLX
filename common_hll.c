@@ -47,6 +47,54 @@ uint64_t asm_log2(const uint64_t x) {
 }
 
 
+Bitstream* generateBitstreamForElement(const void* element, size_t length) {
+    XXH64_hash_t hash = XXH64(element, length, 0);
+
+    Bitstream* bitstream = createBitstream();
+    if (bitstream == NULL) {
+        return NULL;
+    }
+
+    bitstream->stream = malloc(sizeof(uint8_t) * 64); 
+    if (bitstream->stream == NULL) {
+        destroyBitstream(bitstream);
+        return NULL;
+    }
+
+    bitstream->size = 0;
+    int zeroCount = 0;
+
+    for (int i = 0; i < 64; ++i) {
+        if (hash & (1ULL << i)) {  // Vérifiez si le i-ème bit est 1
+            bitstream->stream[bitstream->size++] = zeroCount;
+            zeroCount = 0;  // Réinitialisez le compteur de zéros
+        } else {
+            zeroCount++;  // Incrémentez le compteur de zéros
+        }
+    }
+
+    return bitstream;
+}
+
+// Création d'un Bitstream
+Bitstream* createBitstream() {
+    Bitstream* bitstream = malloc(sizeof(Bitstream));
+    if (!bitstream) return NULL;
+
+    bitstream->stream = NULL;
+    bitstream->size = 0;
+
+    return bitstream;
+}
+
+// Destruction d'un Bitstream
+void destroyBitstream(Bitstream* bitstream) {
+    if (bitstream) {
+        free(bitstream->stream);
+        free(bitstream);
+    }
+}
+
 // Ajouter un élément à l'HyperLogLog
 void ajouter(CommonHLL* hll, const void* element, size_t longueur) {
 	unsigned long hash = XXH64(element, longueur, 666);
@@ -60,7 +108,6 @@ void ajouter(CommonHLL* hll, const void* element, size_t longueur) {
 // Fusionner deux HyperLogLogs
 void merge(CommonHLL* dest, const CommonHLL* src) {
 	size_t size = (1 << dest->p);
-//TODO #pragma omp parallel for default(none) shared(dest, src, size) private(i)
 	for (size_t i = 0; i < size; i++) {
 		if (src->registers[i] > dest->registers[i]) {
 			dest->registers[i] = src->registers[i];
@@ -88,7 +135,22 @@ double estimate_cardinality(const CommonHLL* hll) {
 
 	return estimate/0.72134;
 }
-void destroyHyperLogLog(CommonHLL* hll) {
+
+
+CommonHLL* createCommonHLL(unsigned char p, unsigned char q) {
+        size_t size = (size_t)(1 << p);
+        CommonHLL* hll = malloc(sizeof(CommonHLL));
+        hll->p = p;
+        hll->q = q;
+        hll->registers = calloc(size, sizeof(unsigned char));
+        hll->counts = calloc(q + 2, sizeof(int));
+        hll->counts[0] = size;
+        hll->minCount = 0;
+        hll->registerValueFilter = ~((uint_fast64_t)0);
+        return hll;
+}
+
+void destroyHLL(CommonHLL* hll) {
         free(hll->registers);
         free(hll->counts);
         free(hll);
