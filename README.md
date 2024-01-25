@@ -4,6 +4,48 @@
 ## Introduction
 This project focuses on implementing and benchmarking a practical family of HyperLogLog algorithms: HL2, HL3, and an enhanced version, HL4. The aim is to develop efficient versions in terms of time and memory usage, accepting rare "accidents" whose impact is negligible in practice.
 
+
+# Guide to Clone, Compile, and Run the HLX Project
+
+This guide explains how to clone the HLX project's Git repository, compile the source code, and run the `./benchmark` program with custom or default parameters.
+
+## Cloning the Project
+
+1. Open your terminal.
+
+2. Clone the HLX repository from GitHub using the `git clone` command:
+```bash
+git clone git@github.com:cagret/HLX.git
+cd HLX
+```
+
+## Compiling the Project
+
+1. Ensure you have GCC (the C compiler) installed on your system.
+
+2. Use the `make` command to compile the project. This command will utilize the provided `Makefile`:
+
+```bash
+make
+```
+
+
+## Running the `./benchmark` Program
+
+You can execute the `./benchmark` program using the following command with custom `p` and `q` parameters, or use the default parameters if you prefer:
+
+```bash
+./benchmark -p 15 -q 8
+```
+- The `-p` option allows you to specify the value of `p` (e.g., `-p 15`).
+
+- The `-q` option allows you to specify the value of `q` (e.g., `-q 8`).
+
+If you don't specify these options, the default values will be `p=10` and `q=8`, which correspond to the parameters used by the `xxhash` library.
+
+
+
+
 ## HL2 and HL3: The Basics
 - **HL2 (HyperLogLog 2)**: An early version of the HyperLogLog algorithm, focusing on basic probabilistic counting with a simple data structure.
 - **HL3 (HyperLogLog 3)**: An improved version of HL2, offering better accuracy and efficiency in counting distinct elements.
@@ -11,9 +53,9 @@ This project focuses on implementing and benchmarking a practical family of Hype
 ## HL4: An Advanced HyperLogLog Variant
 - **HL4**: Builds upon HL3 by introducing a layered structure comprising a mega counter, a list of super counters, and a list (of lists) of counters.
 - **Insertion Logic**: 
-  - If the hash value is lower than the mega counter, the process ends.
-  - If not, the algorithm checks the corresponding super counter.
-  - If the super counter's value is also higher, the algorithm updates the regular counter.
+- If the hash value is lower than the mega counter, the process ends.
+- If not, the algorithm checks the corresponding super counter.
+- If the super counter's value is also higher, the algorithm updates the regular counter.
 
 ### Parameters of HL4
 - **Base**: Experimenting with bases 2 and 4, with a potential exploration of base 8.
