@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS= -lm -Wall -Ofast
 
 # Cibles pour chaque exécutable
-all: hl2 hl3 hl4 benchmark
+all: benchmark
 
 hl2: hl2.o xxhash.o common_hll.o
 	$(CC) -o hl2 hl2.o xxhash.o common_hll.o $(CFLAGS)

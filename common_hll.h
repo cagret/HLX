@@ -15,12 +15,15 @@ typedef struct {
     uint_fast64_t registerValueFilter;
 } CommonHLL;
 
-size_t sizeOfHLL(HyperLogLog *hll);
+size_t sizeOfHLL(CommonHLL *hll);
+void print_binary(uint64_t x);
 uint64_t asm_log2(const uint64_t x);
-double estimate_cardinality(const HyperLogLog* hll);
-void ajouter(HyperLogLog* hll, const void* element, size_t longueur);
-void merge(HyperLogLog* dest, const HyperLogLog* src);
+double estimate_cardinality(const CommonHLL* hll);
+void ajouter(CommonHLL* hll, const void* element, size_t longueur);
+void merge(CommonHLL* dest, const CommonHLL* src);
 int calculerRang(uint64_t hash);
+void destroyHyperLogLog(CommonHLL* hll);
+
 
 
 #endif // COMMON_HLL_H

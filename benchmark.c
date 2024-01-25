@@ -8,20 +8,17 @@
 #include "hl4.h"
 
 
-typedef HyperLogLog* (*CreateHLLFunc)(unsigned char, unsigned char);
+typedef CommonHLL* (*CreateHLLFunc)(unsigned char, unsigned char);
 
 void benchmarkHLL(CreateHLLFunc createFunc, unsigned char p, unsigned char q, size_t nombre_elements, size_t* memoryUsage, double* timeSpent) {
 	clock_t start = clock();
+	size_t nb_elements = nombre_elements;
+	CommonHLL* hll = createFunc(p, q);
 	for (uint64_t i = 1; i <= nb_elements; i++) {
 		ajouter(hll, &i, sizeof(i));
 		if (i % 100000000 == 0) {
 			printf("Éléments insérés : %lu / %lu\n", i, nb_elements);
 		}
-	}
-	HyperLogLog* hll = createFunc(p, q);
-
-	for (size_t i = 0; i < nombre_elements; i++) {
-		ajouter(hll, &i, sizeof(i));
 	}
 
 	*memoryUsage = sizeOfHLL(hll);
@@ -61,8 +58,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 	size_t nombre_elements = 10000000;
-
-	CreateHLLFunc functions[] = {createHyperLogLog2, createHyperLogLog3, createHyperLogLog4};
+	CreateHLLFunc functions[] = {(CreateHLLFunc)createHyperLogLog2, (CreateHLLFunc)createHyperLogLog3, (CreateHLLFunc)createHyperLogLog4};
 	const char* names[] = {"HL2", "HL3", "HL4"};
 	size_t memoryUsages[3];
 	double timeSpents[3];

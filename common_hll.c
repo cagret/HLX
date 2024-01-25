@@ -12,7 +12,7 @@
 //#define DEBUG_ASM
 #define DEBUG
 
-size_t sizeOfHLL(HyperLogLog *hll) {
+size_t sizeOfHLL(CommonHLL *hll) {
     size_t size = sizeof(*hll); // Taille de la structure HyperLogLog elle-même
     size += (sizeof(unsigned char) * (1 << hll->p)); // Taille du tableau de registres
     // Ajoutez ici la taille de tout autre composant dynamique
@@ -48,7 +48,7 @@ uint64_t asm_log2(const uint64_t x) {
 
 
 // Ajouter un élément à l'HyperLogLog
-void ajouter(HyperLogLog* hll, const void* element, size_t longueur) {
+void ajouter(CommonHLL* hll, const void* element, size_t longueur) {
 	unsigned long hash = XXH64(element, longueur, 666);
 	size_t index = hash % (1 << hll->p);
 	int rang = (hash != 0) ? asm_log2(hash) : 64; // 64 est le nombre de bits dans uint64_t
@@ -58,7 +58,7 @@ void ajouter(HyperLogLog* hll, const void* element, size_t longueur) {
 }
 
 // Fusionner deux HyperLogLogs
-void merge(HyperLogLog* dest, const HyperLogLog* src) {
+void merge(CommonHLL* dest, const CommonHLL* src) {
 	size_t size = (1 << dest->p);
 //TODO #pragma omp parallel for default(none) shared(dest, src, size) private(i)
 	for (size_t i = 0; i < size; i++) {
@@ -69,7 +69,7 @@ void merge(HyperLogLog* dest, const HyperLogLog* src) {
 }
 
 
-double estimate_cardinality(const HyperLogLog* hll) {
+double estimate_cardinality(const CommonHLL* hll) {
 	double estimate = 0.0;
 	double sum = 0.0;
 	for (size_t i = 0; i < (1<<hll->p); i++) {
@@ -88,9 +88,10 @@ double estimate_cardinality(const HyperLogLog* hll) {
 
 	return estimate/0.72134;
 }
-
-int main(int argc, char *argv[]) {
-	return 0;
+void destroyHyperLogLog(CommonHLL* hll) {
+        free(hll->registers);
+        free(hll->counts);
+        free(hll);
 }
 
 
