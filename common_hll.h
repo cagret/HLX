@@ -22,7 +22,7 @@ typedef struct {
 
 Bitstream* createBitstream();
 Bitstream* generateBitstreamFromHash(uint64_t hash);
-Bitstream* generateBitstreamForElement(const void* element, size_t length);
+Bitstream* generateBitstreamForElement(const void* element, size_t length, int N);
 void destroyBitstream(Bitstream* bitstream);
 void updateBitstream(Bitstream* bitstream, uint64_t hash);
 

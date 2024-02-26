@@ -46,44 +46,49 @@ uint64_t asm_log2(const uint64_t x) {
 	return n;
 }
 
+Bitstream* generateBitstreamForElement(const void* element, size_t length, int N) {
+    // Génération du hash comme précédemment
+    XXH64_hash_t hash = XXH64(element, length, 0);
+    Bitstream* bitstream = createBitstream();
 
-Bitstream* generateBitstreamForElement(const void* element, size_t length) {
-	XXH64_hash_t hash = XXH64(element, length, 0);
-	Bitstream* bitstream = createBitstream();
-	if (bitstream == NULL) {
-		printf("Erreur : échec de la création du Bitstream\n");
-		return NULL;
-	}
+    if (!bitstream || !(bitstream->stream = malloc(sizeof(uint8_t) * 64))) {
+        printf("Erreur : échec lors de la création ou l'allocation du Bitstream\n");
+        destroyBitstream(bitstream);
+        return NULL;
+    }
+
 #ifdef DEBUG
 	printf("Génération du Bitstream pour le hash : %llu\n", (unsigned long long)hash);
 #endif
+    bitstream->size = 0;
+    int zeroCount = 0;
 
-	bitstream->stream = malloc(sizeof(uint8_t) * 64); 
-	if (bitstream->stream == NULL) {
-		printf("Erreur : échec de l'allocation mémoire pour le stream du Bitstream\n");
-		destroyBitstream(bitstream);
-		return NULL;
-	}
-
-	bitstream->size = 0;
-	int zeroCount = 0;
-
-	for (int i = 0; i < 64; ++i) {
-		if (hash & (1ULL << i)) {  // Vérifiez si le i-ème bit est 1
-			bitstream->stream[bitstream->size++] = zeroCount;
+    for (int i = 63; i >= 0; --i) {
+        if (!(hash & (1ULL << i))) { zeroCount++; }
+        else {
+            // Ajouter au Bitstream si zeroCount est significatif par rapport à N
+            if (zeroCount > N) {
+                bitstream->stream[bitstream->size++] = zeroCount;
+            }
 #ifdef DEBUG
 			printf("Bitstream [%zu] = %d\n", bitstream->size - 1, zeroCount);
 #endif
-			zeroCount = 0;  // Réinitialisez le compteur de zéros
-		} else {
-			zeroCount++;  // Incrémentez le compteur de zéros
-		}
-	}
+            zeroCount = 0; // Réinitialisation pour la prochaine séquence
+        }
+    }
+
+    // Ne pas oublier de vérifier après la boucle, au cas où le hash se termine par des zéros
+    if (zeroCount > N) {
+        bitstream->stream[bitstream->size++] = zeroCount;
+    }
 #ifdef DEBUG
 	printf("Taille finale du Bitstream : %zu\n", bitstream->size);
 #endif
-	return bitstream;
+
+    return bitstream;
 }
+
+
 
 // Création d'un Bitstream
 Bitstream* createBitstream() {
