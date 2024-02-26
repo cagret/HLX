@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS= -lm -Wall -Ofast
+CFLAGS= -lm -Wall -fopenmp -Ofast
 
 # Cibles pour chaque exécutable
 all: benchmark

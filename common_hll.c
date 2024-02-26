@@ -13,10 +13,10 @@
 //#define DEBUG
 
 size_t sizeOfHLL(CommonHLL *hll) {
-    size_t size = sizeof(*hll); // Taille de la structure HyperLogLog elle-même
-    size += (sizeof(unsigned char) * (1 << hll->p)); // Taille du tableau de registres
-    // Ajoutez ici la taille de tout autre composant dynamique
-    return size;
+	size_t size = sizeof(*hll); // Taille de la structure HyperLogLog elle-même
+	size += (sizeof(unsigned char) * (1 << hll->p)); // Taille du tableau de registres
+							 // Ajoutez ici la taille de tout autre composant dynamique
+	return size;
 }
 
 void print_binary(uint64_t x) {
@@ -48,51 +48,58 @@ uint64_t asm_log2(const uint64_t x) {
 
 
 Bitstream* generateBitstreamForElement(const void* element, size_t length) {
-    XXH64_hash_t hash = XXH64(element, length, 0);
+	XXH64_hash_t hash = XXH64(element, length, 0);
+	Bitstream* bitstream = createBitstream();
+	if (bitstream == NULL) {
+		printf("Erreur : échec de la création du Bitstream\n");
+		return NULL;
+	}
+#ifdef DEBUG
+	printf("Génération du Bitstream pour le hash : %llu\n", (unsigned long long)hash);
+#endif
 
-    Bitstream* bitstream = createBitstream();
-    if (bitstream == NULL) {
-        return NULL;
-    }
+	bitstream->stream = malloc(sizeof(uint8_t) * 64); 
+	if (bitstream->stream == NULL) {
+		printf("Erreur : échec de l'allocation mémoire pour le stream du Bitstream\n");
+		destroyBitstream(bitstream);
+		return NULL;
+	}
 
-    bitstream->stream = malloc(sizeof(uint8_t) * 64); 
-    if (bitstream->stream == NULL) {
-        destroyBitstream(bitstream);
-        return NULL;
-    }
+	bitstream->size = 0;
+	int zeroCount = 0;
 
-    bitstream->size = 0;
-    int zeroCount = 0;
-
-    for (int i = 0; i < 64; ++i) {
-        if (hash & (1ULL << i)) {  // Vérifiez si le i-ème bit est 1
-            bitstream->stream[bitstream->size++] = zeroCount;
-            zeroCount = 0;  // Réinitialisez le compteur de zéros
-        } else {
-            zeroCount++;  // Incrémentez le compteur de zéros
-        }
-    }
-
-    return bitstream;
+	for (int i = 0; i < 64; ++i) {
+		if (hash & (1ULL << i)) {  // Vérifiez si le i-ème bit est 1
+			bitstream->stream[bitstream->size++] = zeroCount;
+#ifdef DEBUG
+			printf("Bitstream [%zu] = %d\n", bitstream->size - 1, zeroCount);
+#endif
+			zeroCount = 0;  // Réinitialisez le compteur de zéros
+		} else {
+			zeroCount++;  // Incrémentez le compteur de zéros
+		}
+	}
+#ifdef DEBUG
+	printf("Taille finale du Bitstream : %zu\n", bitstream->size);
+#endif
+	return bitstream;
 }
 
 // Création d'un Bitstream
 Bitstream* createBitstream() {
-    Bitstream* bitstream = malloc(sizeof(Bitstream));
-    if (!bitstream) return NULL;
-
-    bitstream->stream = NULL;
-    bitstream->size = 0;
-
-    return bitstream;
+	Bitstream* bitstream = malloc(sizeof(Bitstream));
+	if (!bitstream) return NULL;
+	bitstream->stream = NULL;
+	bitstream->size = 0;
+	return bitstream;
 }
 
 // Destruction d'un Bitstream
 void destroyBitstream(Bitstream* bitstream) {
-    if (bitstream) {
-        free(bitstream->stream);
-        free(bitstream);
-    }
+	if (bitstream) {
+		free(bitstream->stream);
+		free(bitstream);
+	}
 }
 
 // Ajouter un élément à l'HyperLogLog
@@ -138,22 +145,22 @@ double estimate_cardinality(const CommonHLL* hll) {
 
 
 CommonHLL* createCommonHLL(unsigned char p, unsigned char q) {
-        size_t size = (size_t)(1 << p);
-        CommonHLL* hll = malloc(sizeof(CommonHLL));
-        hll->p = p;
-        hll->q = q;
-        hll->registers = calloc(size, sizeof(unsigned char));
-        hll->counts = calloc(q + 2, sizeof(int));
-        hll->counts[0] = size;
-        hll->minCount = 0;
-        hll->registerValueFilter = ~((uint_fast64_t)0);
-        return hll;
+	size_t size = (size_t)(1 << p);
+	CommonHLL* hll = malloc(sizeof(CommonHLL));
+	hll->p = p;
+	hll->q = q;
+	hll->registers = calloc(size, sizeof(unsigned char));
+	hll->counts = calloc(q + 2, sizeof(int));
+	hll->counts[0] = size;
+	hll->minCount = 0;
+	hll->registerValueFilter = ~((uint_fast64_t)0);
+	return hll;
 }
 
 void destroyHLL(CommonHLL* hll) {
-        free(hll->registers);
-        free(hll->counts);
-        free(hll);
+	free(hll->registers);
+	free(hll->counts);
+	free(hll);
 }
 
 

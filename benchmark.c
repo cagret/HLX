@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <omp.h>
 #include "xxhash.h"
 #include "common_hll.h"
 #include "hl2.h"
@@ -15,12 +16,12 @@ typedef void (*InsertHLLFunc)(CommonHLL*, Bitstream*);
 void benchmarkHLL(CreateHLLFunc createFunc, InsertHLLFunc insertFunc, unsigned char p, unsigned char q, size_t nombre_elements, size_t* memoryUsage, double* timeSpent) {
 	clock_t start = clock();
 	CommonHLL* hll = createFunc(p, q); // Créez une instance de HLL avec p et q
+
 	for (uint64_t i = 1; i <= nombre_elements; i++) {
 		Bitstream* bitstream = generateBitstreamForElement(&i, sizeof(i));
 		insertFunc(hll, bitstream);
 		destroyBitstream(bitstream);
-
-		if (i % 100000000 == 0) {
+		if (i % 1000000 == 0) {
 			printf("Éléments insérés : %lu / %lu\n", i, nombre_elements);
 		}
 	}
@@ -62,16 +63,17 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Exemple : ./benchmark -p 12 -q 8\n");
 		return 1;
 	}
-	size_t nombre_elements = 1000000000;
-	const char* names[] = {"HL2", "HL3", "HL4"};
-	CreateHLLFunc functions[] = {(CreateHLLFunc)createHL2, (CreateHLLFunc)createHL3, (CreateHLLFunc)createHL4};
-	InsertHLLFunc insertFunctions[] = {(InsertHLLFunc)insertHL2, (InsertHLLFunc)insertHL3, (InsertHLLFunc)insertHL4};
-	size_t memoryUsages[3];
-	double timeSpents[3];
+	size_t nombre_elements = 10000000;
+	   const char* names[] = {"HL2", "HL3", "HL4"};
+	   CreateHLLFunc functions[] = {(CreateHLLFunc)createHL2, (CreateHLLFunc)createHL3, (CreateHLLFunc)createHL4};
+	   InsertHLLFunc insertFunctions[] = {(InsertHLLFunc)insertHL2, (InsertHLLFunc)insertHL3, (InsertHLLFunc)insertHL4};
+	   size_t memoryUsages[3];
+	   double timeSpents[3];
+	//#pragma omp parallel for
 
 	for (int i = 0; i < 3; i++) {
-		benchmarkHLL(functions[i],insertFunctions[i], p, q, nombre_elements, &memoryUsages[i], &timeSpents[i]);
-		printf("%s utilise %zu octets de mémoire, Temps d'exécution: %f secondes\n", names[i], memoryUsages[i], timeSpents[i]);
+	benchmarkHLL(functions[i],insertFunctions[i], p, q, nombre_elements, &memoryUsages[i], &timeSpents[i]);
+	printf("%s utilise %zu octets de mémoire, Temps d'exécution: %f secondes\n", names[i], memoryUsages[i], timeSpents[i]);
 	}
 
 	return 0;

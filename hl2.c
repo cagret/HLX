@@ -30,5 +30,13 @@ void destroyHL2(HL2* hll) {
 }
 
 void insertHL2(CommonHLL* hll, Bitstream* bitstream) {
-//TODO
+    for (size_t i = 0; i < bitstream->size; i += 2) {
+        size_t index = bitstream->stream[i];      
+        uint8_t rang = bitstream->stream[i + 1];  
+
+        if (hll->registers[index] < rang) {
+            hll->registers[index] = rang;
+        }
+    }
 }
+

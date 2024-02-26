@@ -16,7 +16,7 @@ typedef struct {
 
 HL4* createHL4(unsigned char p, unsigned char q);
 void destroyHL4(HL4* hll);
-void insertHL4(CommonHLL* hll, Bitstream* bitstream);
-#endif // HL2_H
+void insertHL4(HL4* hll, Bitstream* bitstream);
+#endif // HL4_H
 
 
