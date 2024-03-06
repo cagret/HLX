@@ -1,51 +1,47 @@
+#include "hl3.h"
 #include <stdlib.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <math.h>
-#include <time.h>
-#include <omp.h>
-#include <limits.h> // For INT_MAX
-#include "xxhash.h"
-#include "hl3.h"
-#include "common_hll.h"
 
-
-struct {
-        int8_t zeroCount;
-        uint32_t index;
-} *hits;
-
-HL3* createHL3(unsigned char p, unsigned char q) {
-	size_t size = (size_t)(1 << p);
-
-	HL3* hll = malloc(sizeof(HL3));
-	if (!hll) {
-		return NULL;
-	}
-	hll->commonHLL.p = p;
-	hll->commonHLL.q = q;
-	hll->commonHLL.registers = calloc(size, sizeof(unsigned char));
-	hll->commonHLL.counts = calloc(q + 2, sizeof(int));
-	hll->commonHLL.counts[0] = size;
-	hll->commonHLL.minCount = 0;
-	hll->commonHLL.registerValueFilter = ~((uint_fast64_t)0);
-	hll->bitstream = NULL;
-	hll->M = 0;
-	hll->Offset = 0;
-	hll->max_value = 0;
-	hll->Z_occurence = 0;
-	hll->hitsSize = 0;
-
-	return hll;
+HL3* createHL3(unsigned char p, unsigned char q, size_t sketch_size) {
+    HL3* hl3 = malloc(sizeof(HL3));
+    if (hl3 == NULL) {
+        perror("Erreur lors de l'allocation de mémoire pour HL3");
+        exit(EXIT_FAILURE);
+    }
+    hl3->commonHLL = *createCommonHLL(p, q);
+    return hl3;
 }
 
-void destroyHL3(HL3* hll) {
-	if (!hll) return;
-	free(hll->commonHLL.registers);
-	free(hll->commonHLL.counts);
-	free(hll);
+void destroyHL3(HL3* hl3) {
+    destroyHLL(&(hl3->commonHLL));
 }
-void insertHL3(CommonHLL* hll, Bitstream* bitstream) {
-	if (!hll || !bitstream) return;
-	//TODO
+
+void displayHL3(HL3* hl3) {
+    printf("Offset: %d", hl3->commonHLL.q);
+    uint8_t maximum = 0;
+    for (size_t lih = 0; lih < (1 << hl3->commonHLL.p); ++lih) {
+        printf(" %d", hl3->commonHLL.registers[lih]);
+        if (maximum < hl3->commonHLL.registers[lih]) {
+            maximum = hl3->commonHLL.registers[lih];
+        }
+    }
+    printf(" MAX: %d\n", maximum);
+}
+
+/*double hl3_get_cardinality(HL3* hl3) {
+    double estimation = 0;
+    for (size_t lih = 0; lih < (1 << hl3->commonHLL.p); ++lih) {
+        estimation += (double)1 / pow(2, 1 + hl3->commonHLL.registers[lih]);
+    }
+    return (1 << hl3->commonHLL.p) / (alpha(1 << hl3->commonHLL.p) * estimation);
+}
+*/
+void insertHL3(HL3* hl3, uint64_t x) {
+    uint32_t index = x >> (64 - hl3->commonHLL.p);
+    uint8_t rho = asm_log2(x << (hl3->commonHLL.p));
+
+    if (rho > hl3->commonHLL.registers[index]) {
+        hl3->commonHLL.registers[index] = rho;
+    }
 }

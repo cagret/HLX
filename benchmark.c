@@ -7,82 +7,70 @@
 #include "common_hll.h"
 #include "hl2.h"
 #include "hl3.h"
-#include "hl4.h"
+//#define DEBUG
 
-
-typedef CommonHLL* (*CreateHLLFunc)(unsigned char, unsigned char);
-typedef void (*InsertHLLFunc)(CommonHLL*, Bitstream*);
-
-void benchmarkHLL(CreateHLLFunc createFunc, InsertHLLFunc insertFunc, unsigned char p, unsigned char q, size_t nombre_elements, size_t* memoryUsage, double* timeSpent, int N) {
-	clock_t start = clock();
-	CommonHLL* hll = createFunc(p, q); // Créez une instance de HLL avec p et q
-
-	for (uint64_t i = 1; i <= nombre_elements; i++) {
-		Bitstream* bitstream = generateBitstreamForElement(&i, sizeof(i),N);
-		insertFunc(hll, bitstream);
-		destroyBitstream(bitstream);
-		if (i % 1000000 == 0) {
-			printf("Éléments insérés : %lu / %lu\n", i, nombre_elements);
-		}
-	}
-
-	*memoryUsage = sizeOfHLL(hll);
-	double cardinalite_estimee = estimate_cardinality(hll);
-	printf("Cardinalité estimée: %f\n", cardinalite_estimee);
-
-	destroyHLL(hll);
-	clock_t end = clock();
-	*timeSpent = (double)(end - start) / CLOCKS_PER_SEC;
+// Fonction pour générer des données aléatoires pour le benchmark
+void generate_data(uint64_t* data, size_t num_elements) {
+    for (size_t i = 0; i < num_elements; ++i) {
+        data[i] = rand();
+    }
 }
 
+// Fonction pour effectuer le benchmark pour HL2
+void benchmark_hl2(size_t sketch_size, size_t num_bits) {
+    HL2* hl2 = createHL2(6, num_bits); // p = 6 pour HL2
+    uint64_t* data = malloc(sketch_size * sizeof(uint64_t));
+    generate_data(data, sketch_size);
 
-int main(int argc, char *argv[]) {
-	int p = 10; 
-	int q = 8; 
-	int N=0;
-	for (int i = 1; i < argc; i++) {
-		if (strcmp(argv[i], "-p") == 0) {
-			if (i + 1 < argc) {
-				p = atoi(argv[++i]);
-			} else {
-				fprintf(stderr, "Option -p nécessite un argument.\n");
-				return 1;
-			}
-		} else if (strcmp(argv[i], "-q") == 0) {
-			if (i + 1 < argc) {
-				q = atoi(argv[++i]);
-			} else {
-				fprintf(stderr, "Option -q nécessite un argument.\n");
-				return 1;
-			}
-		} else if (strcmp(argv[i], "-N") == 0) {
-			if (i + 1 < argc) {
-				N = atoi(argv[++i]);
-			} else {
-				fprintf(stderr, "Option -N nécessite un argument.\n");
-				return 1;
-			}
-		}
-	}
+    // Insérer les données dans HL2
+    for (size_t i = 0; i < sketch_size; ++i) {
+        insertHL2(hl2, data[i]);
+    }
 
-	if (p == -1 || q == -1) {
-		fprintf(stderr, "Les paramètres -p et -q sont requis.\n");
-		fprintf(stderr, "Exemple : ./benchmark -p 12 -q 8\n");
-		return 1;
-	}
-	size_t nombre_elements = 10000000;
-	const char* names[] = {"HL2", "HL3", "HL4"};
-	CreateHLLFunc functions[] = {(CreateHLLFunc)createHL2, (CreateHLLFunc)createHL3, (CreateHLLFunc)createHL4};
-	InsertHLLFunc insertFunctions[] = {(InsertHLLFunc)insertHL2, (InsertHLLFunc)insertHL3, (InsertHLLFunc)insertHL4};
-	size_t memoryUsages[3];
-	double timeSpents[3];
-	//#pragma omp parallel for
-
-	for (int i = 0; i < 3; i++) {
-		benchmarkHLL(functions[i],insertFunctions[i], p, q, nombre_elements, &memoryUsages[i], &timeSpents[i],N);
-		printf("%s utilise %zu octets de mémoire, Temps d'exécution: %f secondes\n", names[i], memoryUsages[i], timeSpents[i]);
-	}
-
-	return 0;
+    // Estimer la cardinalité de l'ensemble
+    double cardinality = estimate_cardinality(&(hl2->commonHLL));
+    printf("HL2 - Taille du sketch: %zu, Bits par cellule: %zu, Cardinalité estimée: %f\n", sketch_size, num_bits, cardinality);
+    destroyHL2(hl2);
+    free(data);
+#ifdef DEBUG
+    printf("DEBUG: Tout a été destroy\n");
+#endif
 }
 
+// Fonction pour effectuer le benchmark pour HL3
+void benchmark_hl3(size_t sketch_size, size_t num_bits) {
+    HL3* hl3 = createHL3(6, num_bits, sketch_size); // p = 6 pour HL3
+    uint64_t* data = malloc(sketch_size * sizeof(uint64_t));
+    generate_data(data, sketch_size);
+
+    // Insérer les données dans HL3
+    for (size_t i = 0; i < sketch_size; ++i) {
+        insertHL3(hl3, data[i]);
+    }
+
+    // Estimer la cardinalité de l'ensemble
+    double cardinality = estimate_cardinality(&(hl3->commonHLL));
+    printf("HL3 - Taille du sketch: %zu, Bits par cellule: %zu, Cardinalité estimée: %f\n", sketch_size, num_bits, cardinality);
+
+    destroyHL3(hl3);
+    free(data);
+}
+
+int main() {
+    srand((unsigned int)time(NULL));
+
+    // Définir les tailles de sketch et les nombres de bits par cellule à tester
+    size_t sketch_sizes[] = {5, 10, 15, 20};
+    size_t num_bits[] = {3, 4, 5};
+
+    // Effectuer le benchmark pour HL2 et HL3 avec différentes configurations
+    for (size_t i = 0; i < sizeof(sketch_sizes) / sizeof(sketch_sizes[0]); ++i) {
+        for (size_t j = 0; j < sizeof(num_bits) / sizeof(num_bits[0]); ++j) {
+            printf("\nBenchmark pour sketch de taille %zu et %zu bits par cellule :\n", sketch_sizes[i], num_bits[j]);
+            benchmark_hl2(sketch_sizes[i], num_bits[j]);
+            benchmark_hl3(sketch_sizes[i], num_bits[j]);
+        }
+    }
+
+    return 0;
+}
