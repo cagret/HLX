@@ -3,13 +3,15 @@
 #include <stdio.h>
 #include <math.h>
 
-HL3* createHL3(unsigned char p, unsigned char q, size_t sketch_size) {
+HL3* createHL3(unsigned char p, unsigned char q, unsigned char num_bits_per_counter) {
     HL3* hl3 = malloc(sizeof(HL3));
     if (hl3 == NULL) {
         perror("Erreur lors de l'allocation de mémoire pour HL3");
         exit(EXIT_FAILURE);
     }
     hl3->commonHLL = *createCommonHLL(p, q);
+    hl3->num_bits_per_counter = num_bits_per_counter;
+    hl3->errors_count = 0;
     return hl3;
 }
 
@@ -29,19 +31,17 @@ void displayHL3(HL3* hl3) {
     printf(" MAX: %d\n", maximum);
 }
 
-/*double hl3_get_cardinality(HL3* hl3) {
-    double estimation = 0;
-    for (size_t lih = 0; lih < (1 << hl3->commonHLL.p); ++lih) {
-        estimation += (double)1 / pow(2, 1 + hl3->commonHLL.registers[lih]);
-    }
-    return (1 << hl3->commonHLL.p) / (alpha(1 << hl3->commonHLL.p) * estimation);
-}
-*/
+
 void insertHL3(HL3* hl3, uint64_t x) {
     uint32_t index = x >> (64 - hl3->commonHLL.p);
     uint8_t rho = asm_log2(x << (hl3->commonHLL.p));
+    uint64_t MAX_REGISTER_VALUE = (1 << hl3->num_bits_per_counter) - 1;
 
     if (rho > hl3->commonHLL.registers[index]) {
+        if (rho >= MAX_REGISTER_VALUE) {
+            rho = MAX_REGISTER_VALUE - 1;
+	    hl3->errors_count++;
+        }
         hl3->commonHLL.registers[index] = rho;
     }
 }

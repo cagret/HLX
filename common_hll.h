@@ -22,6 +22,7 @@ void ajouter(CommonHLL* hll, const void* element, size_t longueur);
 void merge(CommonHLL* dest, const CommonHLL* src);
 int calculerRang(uint64_t hash);
 double alpha(size_t m);
+void handleOverflow(CommonHLL* hll,uint64_t value);
 
 CommonHLL* createCommonHLL(unsigned char p, unsigned char q);
 void destroyHLL(CommonHLL* hll);

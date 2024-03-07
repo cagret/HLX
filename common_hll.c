@@ -91,6 +91,20 @@ uint8_t leading_zeros(uint64_t x) {
 }
 
 
+void handleOverflow(CommonHLL* hll,uint64_t value) {
+    uint64_t maxValueAllowed = (1 << hll->q) - 1; 
+    if (value > maxValueAllowed) {
+        value = maxValueAllowed;
+    }
+
+    for (size_t i = 0; i < (1 << hll->p); i++) {
+        if (hll->registers[i] == 0) {
+            hll->registers[i] = value;
+        }
+    }
+}
+
+
 void merge(CommonHLL* dest, const CommonHLL* src) {
     size_t size = (1 << dest->p);
     for (size_t i = 0; i < size; i++) {
