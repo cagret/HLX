@@ -50,6 +50,7 @@ void benchmark_hl2(size_t sketch_size, size_t num_bits, uint64_t* hashes, size_t
 #endif
 
     destroyHL2(hl2);
+    hl2 = NULL;
 }
 
 /**
@@ -89,6 +90,7 @@ size_t benchmark_hl3(size_t sketch_size, size_t num_bits, uint64_t* hashes, size
 #endif
 
     destroyHL3(hl3);
+    hl3 = NULL;
     return overflow_count;
 }
 

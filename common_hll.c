@@ -75,13 +75,8 @@ uint64_t asm_log2(const uint64_t x) {
  */
 void destroyHLL(CommonHLL* hll) {
     if (hll != NULL) {
-        if (hll->registers != NULL) {
-            free(hll->registers);
-        }
-        if (hll->counts != NULL) {
-            free(hll->counts);
-        }
-        free(hll);
+        free(hll->registers);
+        free(hll->counts);
     }
 }
 

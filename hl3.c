@@ -30,10 +30,11 @@ HL3* createHL3(unsigned char p, unsigned char q, unsigned char num_bits_per_coun
  *
  * @param hl3 A pointer to the HL3 structure to destroy.
  */
-void destroyHL3(HL3* hl3) {
-    if (hl3 != NULL) {
-        destroyHLL(&(hl3->commonHLL));
-        free(hl3);
+void destroyHL3(HL3* hll) {
+    if (hll != NULL) {
+        destroyHLL(&(hll->commonHLL));
+	free(hll);
+	hll = NULL;
     }
 }
 

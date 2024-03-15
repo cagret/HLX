@@ -25,6 +25,7 @@ void destroyHL2(HL2* hll) {
     if (hll != NULL) {
         destroyHLL(&(hll->commonHLL));
         free(hll);
+	hll = NULL;
     }
 }
 
