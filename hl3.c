@@ -3,23 +3,45 @@
 #include <stdio.h>
 #include <math.h>
 
+/**
+ * Creates a new HL3 structure.
+ *
+ * @param p The precision parameter.
+ * @param q The number of bits per register.
+ * @param num_bits_per_counter The number of bits per counter.
+ * @return A pointer to the newly created HL3 structure.
+ */
 HL3* createHL3(unsigned char p, unsigned char q, unsigned char num_bits_per_counter) {
     HL3* hl3 = malloc(sizeof(HL3));
     if (hl3 == NULL) {
-        perror("Erreur lors de l'allocation de mémoire pour HL3");
+        perror("Error allocating memory for HL3");
         exit(EXIT_FAILURE);
     }
     hl3->commonHLL = *createCommonHLL(p, q);
     hl3->num_bits_per_counter = num_bits_per_counter;
+    hl3->max_register_value = (1 << num_bits_per_counter) - 1;
     hl3->errors_count = 0;
     hl3->min_count = 0;
     return hl3;
 }
 
+/**
+ * Destroys an HL3 structure and frees its memory.
+ *
+ * @param hl3 A pointer to the HL3 structure to destroy.
+ */
 void destroyHL3(HL3* hl3) {
-    destroyHLL(&(hl3->commonHLL));
+    if (hl3 != NULL) {
+        destroyHLL(&(hl3->commonHLL));
+        free(hl3);
+    }
 }
 
+/**
+ * Displays the content of an HL3 structure.
+ *
+ * @param hl3 A pointer to the HL3 structure to display.
+ */
 void displayHL3(HL3* hl3) {
     printf("Offset: %d", hl3->commonHLL.q);
     uint8_t maximum = 0;
@@ -32,6 +54,11 @@ void displayHL3(HL3* hl3) {
     printf(" MAX: %d\n", maximum);
 }
 
+/**
+ * Handles overflow in an HL3 structure.
+ *
+ * @param hl3 A pointer to the HL3 structure.
+ */
 void handleOverflowHL3(HL3* hl3) {
     hl3->min_count++;
     hl3->errors_count += hl3->commonHLL.counts[0];
@@ -50,16 +77,21 @@ void handleOverflowHL3(HL3* hl3) {
     }
 }
 
-
+/**
+ * Inserts a hash value into an HL3 structure.
+ *
+ * @param hl3 A pointer to the HL3 structure.
+ * @param x The hash value to insert.
+ */
 void insertHL3(HL3* hl3, uint64_t x) {
     uint32_t index = x >> (64 - hl3->commonHLL.p);
+    index = index & ((1 << hl3->commonHLL.p) - 1);
     uint8_t rho = asm_log2(x << (hl3->commonHLL.p));
-    uint64_t MAX_REGISTER_VALUE = (1 << hl3->num_bits_per_counter) - 1;
 
     if (rho > hl3->commonHLL.registers[index]) {
-        if (rho >= MAX_REGISTER_VALUE) {
+        if (rho >= hl3->max_register_value) {
             handleOverflowHL3(hl3);
-            rho = MAX_REGISTER_VALUE - 1;
+            rho = hl3->max_register_value - 1;
         }
         hl3->commonHLL.registers[index] = rho;
         hl3->commonHLL.counts[rho]++;
@@ -67,6 +99,12 @@ void insertHL3(HL3* hl3, uint64_t x) {
     }
 }
 
+/**
+ * Estimates the cardinality of an HL3 structure.
+ *
+ * @param hl3 A pointer to the HL3 structure.
+ * @return The estimated cardinality.
+ */
 double estimate_cardinality_hl3(const HL3* hl3) {
     double estimate = 0.0;
     double sum = 0.0;
@@ -79,4 +117,3 @@ double estimate_cardinality_hl3(const HL3* hl3) {
 
     return estimate / 0.72134;
 }
-

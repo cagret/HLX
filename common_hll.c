@@ -8,14 +8,45 @@
 #include "xxhash.h"
 #include "common_hll.h"
 
-size_t sizeOfHLL(CommonHLL *hll) {
-    size_t size = sizeof(*hll); 
-    size += (sizeof(unsigned char) * (1 << hll->p)); 
-    return size;
+/**
+ * Creates a new CommonHLL structure.
+ *
+ * @param p The precision parameter.
+ * @param q The number of bits per register.
+ * @return A pointer to the newly created CommonHLL structure.
+ */
+CommonHLL* createCommonHLL(unsigned char p, unsigned char q) {
+    size_t size = (size_t)(1 << p);
+    CommonHLL* hll = malloc(sizeof(CommonHLL));
+    if (hll == NULL) {
+        perror("Error allocating memory for CommonHLL");
+        exit(EXIT_FAILURE);
+    }
+    hll->p = p;
+    hll->q = q;
+    hll->registers = calloc(size, sizeof(unsigned char));
+    hll->counts = calloc(q + 2, sizeof(int));
+    if (hll->registers == NULL || hll->counts == NULL) {
+        perror("Error allocating memory for CommonHLL registers or counts");
+        exit(EXIT_FAILURE);
+    }
+    hll->counts[0] = size;
+    hll->minCount = 0;
+    hll->registerValueFilter = ~((uint_fast64_t)0);
+    return hll;
 }
 
-
-
+/**
+ * Finds the position of the highest set bit in a 64-bit unsigned integer, essentially calculating log2(x).
+ *
+ * This function quickly figures out how many times you can 'shift' the number x to the left before its highest
+ * set bit becomes the leftmost bit in the number. This count is the log2 of x. It's a handy trick for performance-sensitive code.
+ *
+ * Special case: If x is 0, the function returns 64. This is because log2(0) is undefined, but here, we use 64 to indicate the special case.
+ *
+ * @param x The 64-bit number to find the log2 of. If x is 0, returns 64 as a special handling case.
+ * @return  The log2 of x, measured by the shift count needed to make the highest set bit the leftmost bit. Returns 64 for x = 0.
+ */
 uint64_t asm_log2(const uint64_t x) {
 #ifdef DEBUG
     printf("DEBUG: x: %lu\n", x);
@@ -37,88 +68,29 @@ uint64_t asm_log2(const uint64_t x) {
 }
 
 
-double alpha(size_t m) {
-    double alpha;
-    switch (m) {
-        case 16:
-            alpha = 0.673;
-            break;
-        case 32:
-            alpha = 0.697;
-            break;
-        case 64:
-            alpha = 0.709;
-            break;
-        default:
-            alpha = 0.7213 / (1.0 + 1.079 / m);
-            break;
-    }
-    return alpha;
-}
-
-double estimate_cardinality(const CommonHLL* hll) {
-    double estimate = 0.0;
-    double sum = 0.0;
-    for (size_t i = 0; i < (1 << hll->p); i++) {
-        sum += (double)1 / (1 << hll->registers[i]);
-    }
-
-    // Utiliser la formule standard HyperLogLog
-    double nb_cell_pow = (1 << (2 * hll->p)); // ALPHA_INF * (1 << (hll->p)) * (1 << (hll->p));
-#ifdef DEBUG
-    printf("nb_cell_pow : %f\n", nb_cell_pow);
-#endif
-    estimate = nb_cell_pow / sum;
-#ifdef DEBUG
-    printf("Estimation de la cardinalité : %f\n", estimate);
-#endif
-
-    return estimate / 0.72134;
-}
-
-void ajouter(CommonHLL* hll, const void* element, size_t longueur) {
-    unsigned long hash = XXH64(element, longueur, 666);
-    size_t index = hash % (1 << hll->p);
-    int rang = (hash != 0) ? asm_log2(hash) : 64; // 64 est le nombre de bits dans uint64_t
-    if (hll->registers[index] < rang) {
-        hll->registers[index] = rang;
-    }
-}
-
-uint8_t leading_zeros(uint64_t x) {
-#ifdef DEBUG
-    printf("DEBUG: x: %lu\n", x);
-#endif
-
-    uint8_t count = 0;
-    for (int i = 63; i >= 0; --i) {
-        if ((x & (1ULL << i)) == 0) {
-            count++;
-        } else {
-            break;
+/**
+ * Destroys a CommonHLL structure and frees its memory.
+ *
+ * @param hll A pointer to the CommonHLL structure to destroy.
+ */
+void destroyHLL(CommonHLL* hll) {
+    if (hll != NULL) {
+        if (hll->registers != NULL) {
+            free(hll->registers);
         }
-    }
-
-#ifdef DEBUG
-    printf("DEBUG: count: %u\n", count);
-#endif
-
-    return count;
-}
-
-void handleOverflow(CommonHLL* hll,uint64_t value) {
-    uint64_t maxValueAllowed = (1 << hll->q) - 1; 
-    if (value > maxValueAllowed) {
-        value = maxValueAllowed;
-    }
-
-    for (size_t i = 0; i < (1 << hll->p); i++) {
-        if (hll->registers[i] == 0) {
-            hll->registers[i] = value;
+        if (hll->counts != NULL) {
+            free(hll->counts);
         }
+        free(hll);
     }
 }
 
+/**
+ * Merges two CommonHLL structures.
+ *
+ * @param dest A pointer to the destination CommonHLL structure.
+ * @param src A pointer to the source CommonHLL structure.
+ */
 void merge(CommonHLL* dest, const CommonHLL* src) {
     size_t size = (1 << dest->p);
     for (size_t i = 0; i < size; i++) {
@@ -127,23 +99,3 @@ void merge(CommonHLL* dest, const CommonHLL* src) {
         }
     }
 }
-
-CommonHLL* createCommonHLL(unsigned char p, unsigned char q) {
-    size_t size = (size_t)(1 << p);
-    CommonHLL* hll = malloc(sizeof(CommonHLL));
-    hll->p = p;
-    hll->q = q;
-    hll->registers = calloc(size, sizeof(unsigned char));
-    hll->counts = calloc(q + 2, sizeof(int));
-    hll->counts[0] = size;
-    hll->minCount = 0;
-    hll->registerValueFilter = ~((uint_fast64_t)0);
-    return hll;
-}
-
-void destroyHLL(CommonHLL* hll) {
-    free(hll->registers);
-    free(hll->counts);
-    free(hll);
-}
-

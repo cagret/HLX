@@ -4,12 +4,12 @@
 #include "common_hll.h"
 #include <stdint.h>
 
-
 typedef struct {
     CommonHLL commonHLL;
     unsigned char num_bits_per_counter;
     uint64_t errors_count;
     uint64_t min_count;
+    uint64_t max_register_value;
 } HL3;
 
 
