@@ -9,6 +9,7 @@
 #include <limits.h> 
 #include <string.h> 
 
+#define DEBUG
 
 HL2* createHL2(unsigned char p, unsigned char q) {
     HL2* hll = malloc(sizeof(HL2));
@@ -36,9 +37,21 @@ void displayHL2(HL2* hl2) {
     printf(" MAX: %d\n", maximum);
 }
 
+
 void insertHL2(HL2* hll, uint64_t hash_value) {
     uint32_t index = hash_value >> (64 - hll->commonHLL.p);
-    uint8_t rho = leading_zeros(hash_value << (hll->commonHLL.p));
+    index = index & ((1 << hll->commonHLL.p) - 1);
+
+#ifdef DEBUG
+    printf("DEBUG: hash_value: %lu\n", hash_value);
+    printf("DEBUG: index: %u\n", index);
+#endif
+
+    uint8_t rho = asm_log2(hash_value << (hll->commonHLL.p));
+
+#ifdef DEBUG
+    printf("DEBUG: rho: %u\n", rho);
+#endif
 
     uint8_t currentValue = hll->commonHLL.registers[index];
 
@@ -47,13 +60,11 @@ void insertHL2(HL2* hll, uint64_t hash_value) {
     } else if (rho == currentValue && rho != 0) {
         CommonHLL src;
         src.p = hll->commonHLL.p;
-        src.registers = malloc(sizeof(uint8_t) * (1 << src.p));
-        for (size_t i = 0; i < (1 << src.p); ++i) {
-            src.registers[i] = 0;
-        }
+        src.registers = calloc((1 << src.p), sizeof(uint8_t));
         src.registers[index] = rho;
 
         merge(&(hll->commonHLL), &src);
         free(src.registers);
     }
 }
+

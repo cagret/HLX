@@ -14,7 +14,13 @@ size_t sizeOfHLL(CommonHLL *hll) {
     return size;
 }
 
+
+
 uint64_t asm_log2(const uint64_t x) {
+#ifdef DEBUG
+    printf("DEBUG: x: %lu\n", x);
+#endif
+
     if (x == 0) return 64;
     uint64_t tmp = x;
     int n = 0;
@@ -22,13 +28,14 @@ uint64_t asm_log2(const uint64_t x) {
         n = n + 1;
         tmp = tmp << 1;
     }
-#ifdef DEBUG_ASM
-    printf("Nombre de zéros de tête pour %d: \n", n);
-    print_binary(x);
-    printf("\n");
+
+#ifdef DEBUG
+    printf("DEBUG: n: %d\n", n);
 #endif
+
     return n;
 }
+
 
 double alpha(size_t m) {
     double alpha;
@@ -79,6 +86,10 @@ void ajouter(CommonHLL* hll, const void* element, size_t longueur) {
 }
 
 uint8_t leading_zeros(uint64_t x) {
+#ifdef DEBUG
+    printf("DEBUG: x: %lu\n", x);
+#endif
+
     uint8_t count = 0;
     for (int i = 63; i >= 0; --i) {
         if ((x & (1ULL << i)) == 0) {
@@ -87,9 +98,13 @@ uint8_t leading_zeros(uint64_t x) {
             break;
         }
     }
+
+#ifdef DEBUG
+    printf("DEBUG: count: %u\n", count);
+#endif
+
     return count;
 }
-
 
 void handleOverflow(CommonHLL* hll,uint64_t value) {
     uint64_t maxValueAllowed = (1 << hll->q) - 1; 
@@ -103,7 +118,6 @@ void handleOverflow(CommonHLL* hll,uint64_t value) {
         }
     }
 }
-
 
 void merge(CommonHLL* dest, const CommonHLL* src) {
     size_t size = (1 << dest->p);

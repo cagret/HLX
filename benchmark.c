@@ -8,55 +8,67 @@
 #include <unistd.h>
 
 #define SEED 42
-#define M 64
 #define DEBUG
 
 uint64_t generate_hash(uint64_t key) {
 	return XXH64(&key, 8, SEED);
 }
 
-void benchmark_hl2(size_t sketch_size, size_t num_bits, uint64_t* hashes) {
-	HL2* hl2 = createHL2(sketch_size, num_bits);
-	for (size_t i = 0; i < sketch_size; ++i) {
-		uint64_t hash = generate_hash(hashes[i]);
-		insertHL2(hl2, hash);
-	}
-	double cardinality = estimate_cardinality(&(hl2->commonHLL));
-	printf("HL2 - Taille du sketch: %zu, Bits par cellule: %zu, Cardinalité estimée: %f\n", sketch_size, num_bits, cardinality);
+
+void benchmark_hl2(size_t sketch_size, size_t num_bits, uint64_t* hashes, size_t num_hashes) {
+        HL2* hl2 = createHL2(sketch_size, num_bits);
 
 #ifdef DEBUG
-	printf("DEBUG: Contenu du sketch HL2 :\n");
-	displayHL2(hl2);
+        printf("DEBUG: Création HL2 :\n");
+        printf("DEBUG: Taille du sketch: %zu, Bits par cellule: %zu\n", sketch_size, num_bits);
+        printf("DEBUG: Adresse de hl2: %p\n", (void*)hl2);
+        if (hl2 != NULL) {
+                printf("DEBUG: Contenu initial du sketch HL2 :\n");
+                displayHL2(hl2);
+        } else {
+                printf("DEBUG: hl2 est NULL après création\n");
+        }
 #endif
 
-	destroyHL2(hl2);
+        for (size_t i = 0; i < num_hashes; ++i) {
+                uint64_t hash = generate_hash(hashes[i]);
+
+#ifdef DEBUG
+                printf("DEBUG: Insertion du hash %lu dans HL2\n", hash);
+#endif
+
+                insertHL2(hl2, hash);
+
+#ifdef DEBUG
+                printf("DEBUG: Contenu du sketch HL2 après insertion du hash %lu :\n", hash);
+                displayHL2(hl2);
+#endif
+        }
+
+        double cardinality = estimate_cardinality(&(hl2->commonHLL));
+        printf("HL2 - Taille du sketch: %zu, Bits par cellule: %zu, Cardinalité estimée: %f\n", sketch_size, num_bits, cardinality);
+
+#ifdef DEBUG
+        printf("DEBUG: Contenu final du sketch HL2 :\n");
+        displayHL2(hl2);
+#endif
+
+        destroyHL2(hl2);
 }
 
-size_t benchmark_hl3(size_t sketch_size, size_t num_bits, uint64_t* hashes) {
-	HL3* hl3 = createHL3(6, num_bits, sketch_size);
+
+size_t benchmark_hl3(size_t sketch_size, size_t num_bits, uint64_t* hashes, size_t num_hashes) {
+	HL3* hl3 = createHL3(sketch_size, num_bits, num_bits);
 	size_t overflow_count = 0;
-	for (size_t i = 0; i < sketch_size; ++i) {
+	for (size_t i = 0; i < num_hashes; ++i) {
 		uint64_t hash = generate_hash(hashes[i]);
-		uint8_t rho = asm_log2(hash << (hl3->commonHLL.p));
-		uint64_t MAX_REGISTER_VALUE = (1 << hl3->num_bits_per_counter) - 1;
-
-#ifdef DEBUG
-		printf("DEBUG: Hash pour l'élément %zu : %lu\n", i, hash);
-		printf("DEBUG: Valeur de rho pour l'élément %zu : %hhu\n", i, rho);
-		printf("DEBUG: Valeur MAX_REGISTER_VALUE : %lu\n", MAX_REGISTER_VALUE);
-#endif
-
-		if (rho >= MAX_REGISTER_VALUE) {
-			overflow_count++;
-#ifdef DEBUG
-			printf("Overflow detected at index %zu with hash value %lu\n", i, hash);
-#endif
-			handleOverflow(&(hl3->commonHLL), rho);
-		}
 		insertHL3(hl3, hash);
+		if (hl3->errors_count > overflow_count) {
+			overflow_count = hl3->errors_count;
+		}
 	}
 
-	double cardinality = estimate_cardinality(&(hl3->commonHLL));
+	double cardinality = estimate_cardinality_hl3(hl3);
 	printf("HL3 - Taille du sketch: %zu, Bits par cellule: %zu, Cardinalité estimée: %f\n", sketch_size, num_bits, cardinality);
 	printf("Nombre de dépassements de capacité: %zu\n", overflow_count);
 
@@ -71,13 +83,10 @@ size_t benchmark_hl3(size_t sketch_size, size_t num_bits, uint64_t* hashes) {
 
 int main(int argc, char *argv[]) {
 	int opt;
-	size_t p = 6, q = 5, nb_of_hashs = 100000;
+	size_t q = 5, nb_of_hashs = 100000;
 
 	while ((opt = getopt(argc, argv, "p:q:n:")) != -1) {
 		switch (opt) {
-			case 'p':
-				p = atoi(optarg);
-				break;
 			case 'q':
 				q = atoi(optarg);
 				break;
@@ -85,7 +94,7 @@ int main(int argc, char *argv[]) {
 				nb_of_hashs = atoi(optarg);
 				break;
 			default:
-				fprintf(stderr, "Usage: %s -p <p_value> -q <q_value> -n <number_of_hashs>\n", argv[0]);
+				fprintf(stderr, "Usage: %s -q <q_value> -n <number_of_hashs>\n", argv[0]);
 				exit(EXIT_FAILURE);
 		}
 	}
@@ -99,18 +108,25 @@ int main(int argc, char *argv[]) {
 #ifdef DEBUG
 	printf("Nombre total de hash générés : %lu\n", nb_of_hashs);
 #endif
-	size_t sketch_size = (size_t)p;
-	//size_t num_bits = (size_t)q;
-	size_t num_bits[] = {3, 4, 5};
-	size_t num_errors = 0;
+	size_t sketch_sizes[] = {5, 10, 15, 20};
+	size_t num_bits_array[] = {3, 4, 5};
 
-	printf("\nBenchmark pour sketch de taille %zu :\n", sketch_size);
-	benchmark_hl2(sketch_size, q, hashes);
-	for (int i = 0; i < sizeof(num_bits) / sizeof(num_bits[0]); i++) {
-		num_errors = benchmark_hl3(sketch_size, num_bits[i], hashes);
-		printf("Nombre total de dépassements de capacité pour hl3b%zu : %zu\n", num_bits[i], num_errors);
+	for (size_t i = 0; i < sizeof(sketch_sizes) / sizeof(sketch_sizes[0]); i++) {
+		size_t sketch_size = (1 << sketch_sizes[i]);
+		printf("\nBenchmark pour sketch de taille %zu :\n", sketch_size);
+
+		benchmark_hl2(sketch_size, q, hashes, nb_of_hashs);
+
+		for (size_t j = 0; j < sizeof(num_bits_array) / sizeof(num_bits_array[0]); j++) {
+			size_t num_bits = num_bits_array[j];
+			size_t num_errors = benchmark_hl3(sketch_size, num_bits, hashes, nb_of_hashs);
+			printf("Nombre total de dépassements de capacité pour hl3b%zu : %zu\n", num_bits, num_errors);
+		}
 	}
+
 	free(hashes);
 	return 0;
 }
+
+
 
