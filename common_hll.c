@@ -8,7 +8,7 @@
 #include "xxhash.h"
 #include "common_hll.h"
 
-#define DEBUG
+//#define DEBUG
 /**
  * Creates a new CommonHLL structure.
  *

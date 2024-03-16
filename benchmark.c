@@ -8,7 +8,8 @@
 #include "xxhash.h"
 
 #define NUM_HASHES 100000
-#define DEBUG
+//#define NUM_HASHES 1000000000
+//#define DEBUG
 
 #ifdef DEBUG
 #define PRINT_DEBUG(...) printf(__VA_ARGS__)
@@ -80,33 +81,27 @@ int main() {
 	}
 	PRINT_DEBUG("HL3 avec 5 bits par cellule créé avec succès\n");
 
-	// Insérez les hachages dans les sketches
 	for (int j = 0; j < num_hashes; j++) {
 		PRINT_DEBUG("Insérer hachage %lu dans les sketches HL2 et HL3\n", hashes[j]);
+	#ifdef DEBUG
 		printBinHash(hashes[j]);
+	#endif	
 		insertHL2(hl2, hashes[j]);
 		insertHL3(hl3b3, hashes[j]);
 		insertHL3(hl3b4, hashes[j]);
 		insertHL3(hl3b5, hashes[j]);
 	}
 
-	// Comptez le nombre d'erreurs (cases surestimées) pour chaque sketch HL3
-	int errors_hl3b5 = countOverestimatedCells(hl3b5);
-	int errors_hl3b4 = countOverestimatedCells(hl3b4);
-	int errors_hl3b3 = countOverestimatedCells(hl3b3);
 
-	// Estimez la cardinalité pour chaque sketch
 	double estimate_hl2 = estimate_cardinality((const CommonHLL*)hl2);
 	double estimate_hl3b5 = estimate_cardinality((const CommonHLL*)hl3b5);
 	double estimate_hl3b4 = estimate_cardinality((const CommonHLL*)hl3b4);
 	double estimate_hl3b3 = estimate_cardinality((const CommonHLL*)hl3b3);
 
-	// Affichez les résultats
-	printf("HL2 estimate: %.2f\n", estimate_hl2);
-	printf("HL3b5 estimate: %.2f, errors: %d\n", estimate_hl3b5, errors_hl3b5);
-	printf("HL3b4 estimate: %.2f, errors: %d\n", estimate_hl3b4, errors_hl3b4);
-	printf("HL3b3 estimate: %.2f, errors: %d\n", estimate_hl3b3, errors_hl3b3);
-
+        printf("HL2 estimate: %.2f\n", estimate_hl2);
+        printf("HL3b5 estimate: %.2f, errors: %ld, super: %d\n", estimate_hl3b5, hl3b5->errors_count, hl3b5->super_counter);
+        printf("HL3b4 estimate: %.2f, errors: %ld, super: %d\n", estimate_hl3b4, hl3b4->errors_count, hl3b4->super_counter);
+        printf("HL3b3 estimate: %.2f, errors: %ld, super: %d\n", estimate_hl3b3, hl3b3->errors_count, hl3b3->super_counter);
 	// Libérez la mémoire allouée pour les sketches
 	PRINT_DEBUG("FREE HL2 !\n");
 	destroyHL2(hl2);
