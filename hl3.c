@@ -22,6 +22,9 @@ HL3* createHL3(unsigned char p, unsigned char q, unsigned char num_bits_per_coun
     hl3->max_register_value = (1 << num_bits_per_counter) - 1;
     hl3->errors_count = 0;
     hl3->min_count = 0;
+    hl3->offset = 0;
+    hl3->z_occurence = 0;
+
     return hl3;
 }
 
@@ -30,11 +33,11 @@ HL3* createHL3(unsigned char p, unsigned char q, unsigned char num_bits_per_coun
  *
  * @param hl3 A pointer to the HL3 structure to destroy.
  */
-void destroyHL3(HL3* hll) {
-    if (hll != NULL) {
-        destroyHLL(&(hll->commonHLL));
-	free(hll);
-	hll = NULL;
+void destroyHL3(HL3* hl3) {
+    if (hl3 != NULL) {
+        printf("DESTROY HL3");
+    	destroyHLL(&(hl3->commonHLL));
+	free(hl3);
     }
 }
 
@@ -78,6 +81,34 @@ void handleOverflowHL3(HL3* hl3) {
     }
 }
 
+uint8_t increment_offset(HL3* hl3, bool force) {
+    uint8_t result = 0;
+    if (force) {
+        hl3->offset++;
+        result++;
+        hl3->z_occurence = 0;
+        for (uint32_t i = 0; i < (1 << hl3->commonHLL.p); ++i) {
+            if (hl3->commonHLL.registers[i] != 0) {
+                hl3->commonHLL.registers[i]--;
+            }
+            if (hl3->commonHLL.registers[i] == 0) {
+                hl3->z_occurence++;
+            }
+        }
+    }
+    while (hl3->z_occurence == 0) {
+        hl3->offset++;
+        result++;
+        for (uint32_t i = 0; i < (1 << hl3->commonHLL.p); ++i) {
+            hl3->commonHLL.registers[i]--;
+            if (hl3->commonHLL.registers[i] == 0) {
+                hl3->z_occurence++;
+            }
+        }
+    }
+    return result;
+}
+
 /**
  * Inserts a hash value into an HL3 structure.
  *
@@ -86,35 +117,47 @@ void handleOverflowHL3(HL3* hl3) {
  */
 void insertHL3(HL3* hl3, uint64_t x) {
     uint32_t index = x >> (64 - hl3->commonHLL.p);
-    index = index & ((1 << hl3->commonHLL.p) - 1);
-    uint8_t rho = asm_log2(x << (hl3->commonHLL.p));
-
-    if (rho > hl3->commonHLL.registers[index]) {
-        if (rho >= hl3->max_register_value) {
-            handleOverflowHL3(hl3);
-            rho = hl3->max_register_value - 1;
+    index &= (1 << hl3->commonHLL.p) - 1;
+    int rang = (x != 0) ? asm_log2(x) : hl3->num_bits_per_counter;
+    if (rang >= hl3->num_bits_per_counter) {
+        rang = hl3->num_bits_per_counter - 1;
+    }
+    unsigned char current_value = hl3->commonHLL.registers[index];
+    unsigned char new_value = (1 << rang) - 1;
+    if (new_value > current_value) {
+        if (current_value > 0) {
+            hl3->commonHLL.counts[current_value]--;
         }
-        hl3->commonHLL.registers[index] = rho;
-        hl3->commonHLL.counts[rho]++;
-        hl3->commonHLL.counts[hl3->commonHLL.registers[index] - 1]--;
+        hl3->commonHLL.registers[index] = new_value;
+        hl3->commonHLL.counts[new_value]++;
+    } else {
+        while (new_value > hl3->max_register_value) {
+            increment_offset(hl3, true);
+            new_value -= increment_offset(hl3, true);
+        }
     }
 }
 
 /**
- * Estimates the cardinality of an HL3 structure.
+ * Counts the number of overestimated cells in an HL3 structure.
  *
- * @param hl3 A pointer to the HL3 structure.
- * @return The estimated cardinality.
+ * This function counts the number of cells in an HL3 structure that have a value
+ * greater than the maximum register value allowed by the number of bits per counter.
+ * These cells are considered overestimated.
+ *
+ * @param hll A pointer to the HL3 structure.
+ * @return The number of overestimated cells in the HL3 structure.
  */
-double estimate_cardinality_hl3(const HL3* hl3) {
-    double estimate = 0.0;
-    double sum = 0.0;
-    for (size_t i = 0; i < (1 << hl3->commonHLL.p); i++) {
-        sum += (double)1 / (1 << (hl3->commonHLL.registers[i] + hl3->min_count));
+int countOverestimatedCells(HL3* hll) {
+    int overestimated_cells = 0;
+    int max_register_value = (1 << hll->num_bits_per_counter) - 1;
+    int m = 1 << hll->commonHLL.p;
+
+    for (int i = 0; i < m; i++) {
+        if (hll->commonHLL.registers[i] > max_register_value) {
+            overestimated_cells++;
+        }
     }
 
-    double nb_cell_pow = (1 << (2 * hl3->commonHLL.p));
-    estimate = nb_cell_pow / sum;
-
-    return estimate / 0.72134;
+    return overestimated_cells;
 }

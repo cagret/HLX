@@ -1,154 +1,128 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <time.h>
+#include <math.h>
 #include "hl2.h"
 #include "hl3.h"
 #include "xxhash.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <unistd.h>
-
-#define SEED 42
+#define NUM_HASHES 100000
 #define DEBUG
 
-/**
- * Generates a hash value for a given key.
- *
- * @param key The key to hash.
- * @return The generated hash value.
- */
-uint64_t generate_hash(uint64_t key) {
-    return XXH64(&key, 8, SEED);
-}
-
-/**
- * Benchmarks the HL2 algorithm.
- *
- * @param sketch_size The size of the sketch.
- * @param num_bits The number of bits per register.
- * @param hashes The array of hash values.
- * @param num_hashes The number of hash values.
- */
-void benchmark_hl2(size_t sketch_size, size_t num_bits, uint64_t* hashes, size_t num_hashes) {
-    clock_t start = clock();
-
-    HL2* hl2 = createHL2(sketch_size, num_bits);
-    for (size_t i = 0; i < num_hashes; ++i) {
-        uint64_t hash = generate_hash(hashes[i]);
-        insertHL2(hl2, hash);
-    }
-    double cardinality = estimate_cardinality(&(hl2->commonHLL));
-
-    clock_t end = clock();
-    double elapsed_time = (double)(end - start) / CLOCKS_PER_SEC;
-
-    printf("HL2 - Sketch size: %zu, Bits per register: %zu, Estimated cardinality: %f, Time: %f seconds\n",
-           sketch_size, num_bits, cardinality, elapsed_time);
-
 #ifdef DEBUG
-    printf("DEBUG: HL2 sketch content:\n");
-    displayHL2(hl2);
+#define PRINT_DEBUG(...) printf(__VA_ARGS__)
+#else
+#define PRINT_DEBUG(...)
 #endif
 
-    destroyHL2(hl2);
-    hl2 = NULL;
+uint64_t* generateRandomHashes(int num_hashes) {
+	uint64_t* hashes = (uint64_t*)malloc(num_hashes * sizeof(uint64_t));
+	if (hashes == NULL) {
+          perror("Failed to allocate memory for hashes");
+          exit(EXIT_FAILURE);
+        }
+	for (int i = 0; i < num_hashes; i++) {
+		hashes[i] = XXH64(&i, sizeof(int), 0);
+	}
+	return hashes;
 }
 
-/**
- * Benchmarks the HL3 algorithm.
- *
- * @param sketch_size The size of the sketch.
- * @param num_bits The number of bits per register.
- * @param hashes The array of hash values.
- * @param num_hashes The number of hash values.
- * @return The number of overflows.
- */
-size_t benchmark_hl3(size_t sketch_size, size_t num_bits, uint64_t* hashes, size_t num_hashes) {
-    clock_t start = clock();
 
-    HL3* hl3 = createHL3(sketch_size, num_bits, num_bits);
-    size_t overflow_count = 0;
-    for (size_t i = 0; i < num_hashes; ++i) {
-        uint64_t hash = generate_hash(hashes[i]);
-        insertHL3(hl3, hash);
-        if (hl3->errors_count > overflow_count) {
-            overflow_count = hl3->errors_count;
-        }
+
+void printBinHash(uint64_t hash) {
+    for (int j = 63; j >= 0; j--) {
+	printf("%lu", (hash >> j) & 1);
+	if (j % 8 == 0 && j != 0) {
+		printf(" "); // Pour la lisibilité, ajoute un espace tous les 8 bits
+	}
     }
-
-    double cardinality = estimate_cardinality_hl3(hl3);
-
-    clock_t end = clock();
-    double elapsed_time = (double)(end - start) / CLOCKS_PER_SEC;
-
-    printf("HL3 - Sketch size: %zu, Bits per register: %zu, Estimated cardinality: %f, Time: %f seconds\n",
-           sketch_size, num_bits, cardinality, elapsed_time);
-    printf("Number of overflows: %zu\n", overflow_count);
-
-#ifdef DEBUG
-    printf("DEBUG: HL3 sketch content:\n");
-    displayHL3(hl3);
-#endif
-
-    destroyHL3(hl3);
-    hl3 = NULL;
-    return overflow_count;
+    uint64_t leading_zeros = asm_log2(hash);
+    printf(" | Leading zeros: %lu\n", leading_zeros);
 }
 
-/**
- * Main function to run the benchmarks.
- *
- * @param argc The number of command-line arguments.
- * @param argv The array of command-line arguments.
- * @return The exit status of the program.
- */
-int main(int argc, char *argv[]) {
-    int opt;
-    size_t q = 5, nb_of_hashes = 100000;
+void printHashes(uint64_t* hashes, int num_hashes) {
+	for (int i = 0; i < num_hashes; i++) {
+		printf("Hash %d: ", i);
+		printBinHash(hashes[i]);
+	}
+}
 
-    while ((opt = getopt(argc, argv, "q:n:")) != -1) {
-        switch (opt) {
-            case 'q':
-                q = atoi(optarg);
-                break;
-            case 'n':
-                nb_of_hashes = atoi(optarg);
-                break;
-            default:
-                fprintf(stderr, "Usage: %s -q <q_value> -n <number_of_hashes>\n", argv[0]);
-                exit(EXIT_FAILURE);
-        }
-    }
 
-    srand((unsigned int)time(NULL));
-    uint64_t* hashes = malloc(nb_of_hashes * sizeof(uint64_t));
-    if (hashes == NULL) {
-        perror("Error allocating memory for hashes");
-        exit(EXIT_FAILURE);
-    }
-    for (uint32_t i = 0; i < nb_of_hashes; i++) {
-        hashes[i] = rand();
-    }
+int main() {
+	int num_hashes = NUM_HASHES;
+	uint64_t* hashes = generateRandomHashes(num_hashes);
+	int p = 10;
+	int q = 8;
+	printf("Total number of generated hashes: %d\n\n", num_hashes);
 
-#ifdef DEBUG
-    printf("Total number of generated hashes: %lu\n", nb_of_hashes);
-#endif
+	HL2* hl2 = createHL2(p,q);
+	if (hl2 == NULL) {
+		PRINT_DEBUG("Erreur lors de la création du sketch HL2\n");
+	}
+	PRINT_DEBUG("HL2 créé avec succès\n");
 
-    size_t sketch_sizes[] = {5, 10, 15, 20};
-    size_t num_bits_array[] = {3, 4, 5};
+	HL3* hl3b3 = createHL3(p,q, 3);
+	if (hl3b3 == NULL) {
+		PRINT_DEBUG("Erreur lors de la création du sketch HL3b3\n");
+	}
+	PRINT_DEBUG("HL3 avec 3 bits par cellule créé avec succès\n");
 
-    for (size_t i = 0; i < sizeof(sketch_sizes) / sizeof(sketch_sizes[0]); i++) {
-        size_t sketch_size = (1 << sketch_sizes[i]);
-        printf("\nBenchmark for sketch size %zu:\n", sketch_size);
+	HL3* hl3b4 = createHL3(p,q, 4);
+	if (hl3b4 == NULL) {
+		PRINT_DEBUG("Erreur lors de la création du sketch HL3b4\n");
+	}
+	PRINT_DEBUG("HL3 avec 4 bits par cellule créé avec succès\n");
 
-        benchmark_hl2(sketch_size, q, hashes, nb_of_hashes);
+	HL3* hl3b5 = createHL3(p,q, 5);
+	if (hl3b5 == NULL) {
+		PRINT_DEBUG("Erreur lors de la création du sketch HL3b5\n");
+	}
+	PRINT_DEBUG("HL3 avec 5 bits par cellule créé avec succès\n");
 
-        for (size_t j = 0; j < sizeof(num_bits_array) / sizeof(num_bits_array[0]); j++) {
-            size_t num_bits = num_bits_array[j];
-            size_t num_errors = benchmark_hl3(sketch_size, num_bits, hashes, nb_of_hashes);
-            printf("Total number of overflows for hl3b%zu: %zu\n", num_bits, num_errors);
-        }
-    }
+	// Insérez les hachages dans les sketches
+	for (int j = 0; j < num_hashes; j++) {
+		PRINT_DEBUG("Insérer hachage %lu dans les sketches HL2 et HL3\n", hashes[j]);
+		printBinHash(hashes[j]);
+		insertHL2(hl2, hashes[j]);
+		insertHL3(hl3b3, hashes[j]);
+		insertHL3(hl3b4, hashes[j]);
+		insertHL3(hl3b5, hashes[j]);
+	}
 
-    free(hashes);
-    return 0;
+	// Comptez le nombre d'erreurs (cases surestimées) pour chaque sketch HL3
+	int errors_hl3b5 = countOverestimatedCells(hl3b5);
+	int errors_hl3b4 = countOverestimatedCells(hl3b4);
+	int errors_hl3b3 = countOverestimatedCells(hl3b3);
+
+	// Estimez la cardinalité pour chaque sketch
+	double estimate_hl2 = estimate_cardinality((const CommonHLL*)hl2);
+	double estimate_hl3b5 = estimate_cardinality((const CommonHLL*)hl3b5);
+	double estimate_hl3b4 = estimate_cardinality((const CommonHLL*)hl3b4);
+	double estimate_hl3b3 = estimate_cardinality((const CommonHLL*)hl3b3);
+
+	// Affichez les résultats
+	printf("HL2 estimate: %.2f\n", estimate_hl2);
+	printf("HL3b5 estimate: %.2f, errors: %d\n", estimate_hl3b5, errors_hl3b5);
+	printf("HL3b4 estimate: %.2f, errors: %d\n", estimate_hl3b4, errors_hl3b4);
+	printf("HL3b3 estimate: %.2f, errors: %d\n", estimate_hl3b3, errors_hl3b3);
+
+	// Libérez la mémoire allouée pour les sketches
+	PRINT_DEBUG("FREE HL2 !\n");
+	destroyHL2(hl2);
+	PRINT_DEBUG("FREE HL3B3 !\n");
+	destroyHL3(hl3b3);
+	PRINT_DEBUG("FREE HL3B4 !\n");
+	destroyHL3(hl3b4);
+	PRINT_DEBUG("FREE HL3B5 !\n");
+	destroyHL3(hl3b5);
+
+	printf("\n");
+
+
+	PRINT_DEBUG("FREE Hashes !\n");
+	free(hashes);
+	PRINT_DEBUG("DONE : FREE Hashes !\n");
+
+	return 0;
 }

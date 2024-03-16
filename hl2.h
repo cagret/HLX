@@ -12,7 +12,5 @@ typedef struct {
 HL2* createHL2(unsigned char p, unsigned char q);
 void destroyHL2(HL2* hll);
 void insertHL2(HL2* hll, uint64_t hash_value);
-void displayHL2(HL2* hl2);
-double estimate_cardinality(const CommonHLL* hll);
 #endif /* HL2_H */
 

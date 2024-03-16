@@ -8,6 +8,7 @@
 #include "xxhash.h"
 #include "common_hll.h"
 
+#define DEBUG
 /**
  * Creates a new CommonHLL structure.
  *
@@ -48,25 +49,10 @@ CommonHLL* createCommonHLL(unsigned char p, unsigned char q) {
  * @return  The log2 of x, measured by the shift count needed to make the highest set bit the leftmost bit. Returns 64 for x = 0.
  */
 uint64_t asm_log2(const uint64_t x) {
-#ifdef DEBUG
-    printf("DEBUG: x: %lu\n", x);
-#endif
-
-    if (x == 0) return 64;
-    uint64_t tmp = x;
-    int n = 0;
-    while ((tmp & (1ULL << 63)) == 0) {
-        n = n + 1;
-        tmp = tmp << 1;
-    }
-
-#ifdef DEBUG
-    printf("DEBUG: n: %d\n", n);
-#endif
-
-    return n;
+        uint64_t y;
+        asm("\tbsr %1, %0\n" : "=r"(y) : "r"(x));
+        return 63-y;
 }
-
 
 /**
  * Destroys a CommonHLL structure and frees its memory.
@@ -75,10 +61,25 @@ uint64_t asm_log2(const uint64_t x) {
  */
 void destroyHLL(CommonHLL* hll) {
     if (hll != NULL) {
+#ifdef DEBUG
+        printf("DestroyHLL registers: ");
+        for (size_t i = 0; i < (1 << hll->p); i++) {
+            printf("%d ", hll->registers[i]);
+        }
+        printf("\n");
+
+        printf("DestroyHLL counts: ");
+        for (size_t i = 0; i < hll->q + 2; i++) {
+            printf("%d ", hll->counts[i]);
+        }
+        printf("\n");
+#endif
+
         free(hll->registers);
         free(hll->counts);
     }
 }
+
 
 /**
  * Merges two CommonHLL structures.
@@ -93,4 +94,27 @@ void merge(CommonHLL* dest, const CommonHLL* src) {
             dest->registers[i] = src->registers[i];
         }
     }
+}
+
+
+/**
+ * Estimates the cardinality of a CommonHLL structure.
+ *
+ * This function calculates the estimated cardinality of a set represented by a CommonHLL structure.
+ * It uses the harmonic mean of the inverse powers of 2 of the register values to estimate the cardinality.
+ *
+ * @param hll A pointer to the CommonHLL structure.
+ * @return The estimated cardinality of the set.
+ */
+double estimate_cardinality(const CommonHLL* hll) {
+    double estimate = 0.0;
+    double sum = 0.0;
+    for (size_t i = 0; i < (1 << hll->p); i++) {
+        sum += (double)1 / (1 << hll->registers[i]);
+    }
+
+    double nb_cell_pow = (1 << (2 * hll->p));
+    estimate = nb_cell_pow / sum;
+
+    return estimate / 0.72134;
 }
