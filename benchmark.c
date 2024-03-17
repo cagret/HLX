@@ -3,12 +3,12 @@
 #include <stdint.h>
 #include <time.h>
 #include <math.h>
+#include <unistd.h>
+
 #include "hl2.h"
 #include "hl3.h"
 #include "xxhash.h"
 
-#define NUM_HASHES 100000
-//#define NUM_HASHES 1000000000
 //#define DEBUG
 
 #ifdef DEBUG
@@ -20,9 +20,9 @@
 uint64_t* generateRandomHashes(int num_hashes) {
 	uint64_t* hashes = (uint64_t*)malloc(num_hashes * sizeof(uint64_t));
 	if (hashes == NULL) {
-          perror("Failed to allocate memory for hashes");
-          exit(EXIT_FAILURE);
-        }
+		perror("Failed to allocate memory for hashes");
+		exit(EXIT_FAILURE);
+	}
 	for (int i = 0; i < num_hashes; i++) {
 		hashes[i] = XXH64(&i, sizeof(int), 0);
 	}
@@ -32,14 +32,14 @@ uint64_t* generateRandomHashes(int num_hashes) {
 
 
 void printBinHash(uint64_t hash) {
-    for (int j = 63; j >= 0; j--) {
-	printf("%lu", (hash >> j) & 1);
-	if (j % 8 == 0 && j != 0) {
-		printf(" "); // Pour la lisibilité, ajoute un espace tous les 8 bits
+	for (int j = 63; j >= 0; j--) {
+		printf("%lu", (hash >> j) & 1);
+		if (j % 8 == 0 && j != 0) {
+			printf(" "); // Pour la lisibilité, ajoute un espace tous les 8 bits
+		}
 	}
-    }
-    uint64_t leading_zeros = asm_log2(hash);
-    printf(" | Leading zeros: %lu\n", leading_zeros);
+	uint64_t leading_zeros = asm_log2(hash);
+	printf(" | Leading zeros: %lu\n", leading_zeros);
 }
 
 void printHashes(uint64_t* hashes, int num_hashes) {
@@ -50,13 +50,36 @@ void printHashes(uint64_t* hashes, int num_hashes) {
 }
 
 
-int main() {
-	int num_hashes = NUM_HASHES;
-	uint64_t* hashes = generateRandomHashes(num_hashes);
-	int p = 10;
-	int q = 8;
-	printf("Total number of generated hashes: %d\n\n", num_hashes);
+int main(int argc, char *argv[]) {
+	int p = 10; 
+	int q = 8;  
+	int num_hashes = 1000000;
+	int option;
 
+	while ((option = getopt(argc, argv, "p:q:n:")) != -1) {
+		switch (option) {
+			case 'p':
+				p = atoi(optarg);
+				break;
+			case 'q':
+				q = atoi(optarg);
+				break;
+			case 'n':
+				num_hashes = atoi(optarg);
+				break;
+			default:
+				fprintf(stderr, "Usage: %s -p [int] -q [int] -n [int]\n", argv[0]);
+				exit(EXIT_FAILURE);
+		}
+	}
+
+
+
+	printf("p: %d\n", p);
+	printf("q: %d\n", q);
+	printf("Total number of generated hashes: %d\n\n", num_hashes);
+	uint64_t* hashes = generateRandomHashes(num_hashes);
+	
 	HL2* hl2 = createHL2(p,q);
 	if (hl2 == NULL) {
 		PRINT_DEBUG("Erreur lors de la création du sketch HL2\n");
@@ -83,9 +106,9 @@ int main() {
 
 	for (int j = 0; j < num_hashes; j++) {
 		PRINT_DEBUG("Insérer hachage %lu dans les sketches HL2 et HL3\n", hashes[j]);
-	#ifdef DEBUG
+#ifdef DEBUG
 		printBinHash(hashes[j]);
-	#endif	
+#endif	
 		insertHL2(hl2, hashes[j]);
 		insertHL3(hl3b3, hashes[j]);
 		insertHL3(hl3b4, hashes[j]);
@@ -98,10 +121,10 @@ int main() {
 	double estimate_hl3b4 = estimate_cardinality((const CommonHLL*)hl3b4);
 	double estimate_hl3b3 = estimate_cardinality((const CommonHLL*)hl3b3);
 
-        printf("HL2 estimate: %.2f\n", estimate_hl2);
-        printf("HL3b5 estimate: %.2f, errors: %ld, super: %d\n", estimate_hl3b5, hl3b5->errors_count, hl3b5->super_counter);
-        printf("HL3b4 estimate: %.2f, errors: %ld, super: %d\n", estimate_hl3b4, hl3b4->errors_count, hl3b4->super_counter);
-        printf("HL3b3 estimate: %.2f, errors: %ld, super: %d\n", estimate_hl3b3, hl3b3->errors_count, hl3b3->super_counter);
+	printf("HL2 estimate: %.2f\n", estimate_hl2);
+	printf("HL3b5 estimate: %.2f, errors: %ld, super: %d\n", estimate_hl3b5, hl3b5->errors_count, hl3b5->super_counter);
+	printf("HL3b4 estimate: %.2f, errors: %ld, super: %d\n", estimate_hl3b4, hl3b4->errors_count, hl3b4->super_counter);
+	printf("HL3b3 estimate: %.2f, errors: %ld, super: %d\n", estimate_hl3b3, hl3b3->errors_count, hl3b3->super_counter);
 	// Libérez la mémoire allouée pour les sketches
 	PRINT_DEBUG("FREE HL2 !\n");
 	destroyHL2(hl2);
