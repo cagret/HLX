@@ -5,7 +5,7 @@
 This project focuses on implementing and benchmarking a practical family of HyperLogLog algorithms: HL2, HL3, and an enhanced version, HL4. The aim is to develop efficient versions in terms of time and memory usage, accepting rare "accidents" whose impact is negligible in practice.
 
 
-# Guide to Clone, Compile, and Run the HLX Project
+## Guide to Clone, Compile, and Run the HLX Project
 
 This guide explains how to clone the HLX project's Git repository, compile the source code, and run the `./benchmark` program with custom or default parameters.
 
@@ -35,7 +35,7 @@ make
 You can execute the `./benchmark` program using the following command with custom `p` and `q` parameters, or use the default parameters if you prefer:
 
 ```bash
-./benchmark -p 15 -q 8
+./benchmark -p 15 -q 8 -n 100000
 ```
 
 In our HyperLogLog (HLL) implementation, we utilize the `XXH64` function from the XXHash library for efficient hashing of data elements. This function is integral to the accuracy and performance of the HLL algorithm. Here's a brief overview of how `XXH64` is used:
@@ -45,12 +45,14 @@ In our HyperLogLog (HLL) implementation, we utilize the `XXH64` function from th
 - **Parameters**:
   - `p`: This is a pointer to the data you wish to hash. The data can be of any type, such as a string, a number, or a custom structure.
   - `q` (length): The size of the data pointed to by `p` in bytes. This length tells `XXH64` how much data to read and hash from `p`.
-  - `seed`: In our implementation, this is set to `666`. The seed is used to initialize the hashing algorithm and can be any number. Changing the seed will result in a completely different hash for the same data, which can be useful for generating unique hash series or for security purposes.
+  - `n`: Number of unique elements to generate and insert into the HyperLogLog algorithm for benchmarking tests.
 
 - **Usage in HLL**: The hash value returned by `XXH64` is used to determine the register index to update and the rank of the hash, which are key components in estimating the cardinality (the number of unique elements) in a dataset.
 - The `-p` option allows you to specify the value of `p` (e.g., `-p 15`).
 
 - The `-q` option allows you to specify the value of `q` (e.g., `-q 8`).
+
+- The `-n` option allows you to specify the value of `n` (e.g., `-n 100000`).
 
 
 ## HL2 and HL3: The Basics
@@ -76,6 +78,11 @@ The benchmarking process involves comparing HL2, HL3, and HL4 in terms of memory
 ## Conclusion
 HL4 represents an innovative approach in the HyperLogLog family, aiming to strike a balance between computational efficiency and accuracy. The benchmarking will shed light on its practical applicability and performance metrics.
 
----
+## Contributions
+Contributions are always welcome! Please fork the project and open a pull request with your proposed changes.
+
+## License
+Distributed under the GNU GENERAL PUBLIC LICENSE Version 3, dated 29 June 2007. See [LICENSE](LICENSE) for more information.
+
 
 
